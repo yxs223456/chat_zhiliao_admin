@@ -30,6 +30,7 @@ class User extends Common
                 $requestMap["condition"]["u_id"] = $user["id"]??0;
             }
         }
+        var_dump($requestMap);
         $list = $userCertificationModel->paginateList(
             $requestMap, "", false, null, "audit_status asc, audit_time desc");
 
