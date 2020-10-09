@@ -16,7 +16,7 @@
                             <input type="text" id="user_number" class="form-control" name="user_number" value="{$user_number|default=''}" placeholder="" />
 
                             <label for="">是否显示</label>
-                            {:getEnumSelectWidget($certificateStatusEnum, 'audit_status', '-全部-', isset($audit_status) ? $audit_status: -999, 1)}
+                            {:getEnumSelectWidget($certificateStatusEnum, 'audit_status', '-全部-', isset($audit_status) ? $audit_status: '', 1)}
 
                             <button class="btn btn-success btn-sm" type="submit" style="margin-bottom:0;margin-left:4px"><i class="fa fa-filter"></i> 筛选</button>
                             <a class="btn btn-primary btn-sm"  style="margin-bottom:0" href="{:url('certificationList')}"><i class="fa fa-filter"></i> 重置</a>
@@ -58,7 +58,7 @@
                                     'id'=>$vo['id'],
                                     'page'=>$page??1,
                                     'user_number'=>$user_number??'',
-                                    'audit_status'=>$audit_status??-999,
+                                    'audit_status'=>$audit_status??'',
                                     ])}" >
                                         审核通过
                                     </a>
@@ -68,7 +68,7 @@
                                     'id'=>$vo['id'],
                                     'page'=>$page??1,
                                     'user_number'=>$user_number??'',
-                                    'audit_status'=>$audit_status??-999,
+                                    'audit_status'=>$audit_status??'',
                                     ])}" >
                                         审核不通过
                                     </a>
