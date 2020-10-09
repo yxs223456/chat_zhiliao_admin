@@ -81,7 +81,7 @@ class User extends Common
                 "audit_status" => $do,
                 "audit_time" => time(),
             ]);
-            if (!$userInfo["certificate_status"] == CertificateStatusEnum::SUCCESS) {
+            if ($userInfo["certificate_status"] != CertificateStatusEnum::SUCCESS) {
                 $userInfoUpdate["certificate_status"] = $do;
                 if ($do == CertificateStatusEnum::SUCCESS) {
                     $userInfoUpdate["certificate_time"] = time();
