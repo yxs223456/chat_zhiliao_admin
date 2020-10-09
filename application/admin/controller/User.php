@@ -100,8 +100,8 @@ class User extends Common
 
         //跳转参数
         $page = input("page",1);
-        $auditStatus = input("audit_status", -999);
-        $userNumber = input("user_number", "");
+        $auditStatus = input("audit_status");
+        $userNumber = input("user_number");
         $this->redirect("certificationList?page=$page&user_number=$userNumber&audit_status=$auditStatus");
     }
 }

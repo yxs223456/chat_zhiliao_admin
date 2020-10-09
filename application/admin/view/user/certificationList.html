@@ -58,7 +58,7 @@
                                     'id'=>$vo['id'],
                                     'page'=>$page??1,
                                     'user_number'=>$user_number??'',
-                                    'audit_status'=>$audit_status??'',
+                                    'audit_status'=>$audit_status??null,
                                     ])}" >
                                         审核通过
                                     </a>
@@ -112,7 +112,7 @@
                 //首次不执行
                 if(!first){
                     $("#searchForm").attr('action', '{:url("certificationList")}?page='+obj.curr+
-                        "&audit_status={$audit_status|default=-999}" +
+                        "&audit_status={$audit_status|default=''}" +
                         "&user_number={$user_number|default=''}"
                     );
                     $("#searchForm").submit();
