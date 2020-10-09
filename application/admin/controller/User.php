@@ -25,9 +25,10 @@ class User extends Common
         if (isset($requestMap["condition"]["user_number"])) {
             $userNum = $requestMap["condition"]["user_number"];
             unset($requestMap["condition"]["user_number"]);
-            $user = Db::name("user")->where("user_number", $userNum)->find();
-            $requestMap["condition"]["u_id"] = $user["id"]??0;
-
+            if ($userNum) {
+                $user = Db::name("user")->where("user_number", $userNum)->find();
+                $requestMap["condition"]["u_id"] = $user["id"]??0;
+            }
         }
         $list = $userCertificationModel->paginateList(
             $requestMap, "", false, null, "audit_status asc, audit_time desc");
