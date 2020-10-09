@@ -27,7 +27,9 @@
       "ext-bcmath": "*",
         "naixiaoxin/think-wechat": "^1.4",
       "ext-redis": "*",
-      "ext-curl": "*"
+      "ext-curl": "*",
+        "league/flysystem-aws-s3-v3": "^1.0",
+        "google/cloud-storage": "^1.23"
     },
     "autoload": {
         "psr-4": {

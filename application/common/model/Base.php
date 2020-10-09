@@ -23,7 +23,10 @@ class Base extends Model
      * @return Base|\think\Paginator
      * @throws \think\exception\DbException
      */
-    public function paginateList($requestMap,$field="*",$extraCondition=false,$alias=null,$order=null) {
+    public function paginateList($requestMap,$field="",$extraCondition=false,$alias=null,$order=null) {
+        if (empty($field)) {
+            $field = "*";
+        }
         if(!$extraCondition) {
             return $this->field($field)
                 ->where(getMapFromRequest($requestMap["condition"]))

@@ -9,12 +9,12 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-//\think\Console::addDefaultCommands([
-//    '\\think\\swoole\\command\\Swoole',
-//    '\\think\\swoole\\command\\Server',
-//]);
-//
-//\think\Facade::bind([
-//    \think\swoole\facade\Application::class => \think\swoole\Application::class,
-//    \think\swoole\facade\Http::class        => \think\swoole\Http::class,
-//]);
+\think\Console::addDefaultCommands([
+    '\\think\\swoole\\command\\Swoole',
+    '\\think\\swoole\\command\\Server',
+]);
+
+\think\Facade::bind([
+    \think\swoole\facade\Application::class => \think\swoole\Application::class,
+    \think\swoole\facade\Http::class        => \think\swoole\Http::class,
+]);

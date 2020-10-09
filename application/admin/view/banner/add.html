@@ -31,7 +31,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">封面图片<font color='red'>*</font>：</label>
+                            <label class="col-sm-3 control-label">图片<font color='red'>*</font>：</label>
                             <div class="input-group col-sm-4">
                                 <img id="image_url_src" src="" width="100px">
                                 <input type="hidden" id="image_url" name="image_url" />
@@ -103,7 +103,7 @@
 
     function uploadImage(img, formInput, fileInput) {
         $.ajaxFileUpload({
-            url: "__DOMAIN__/admin/upload/uploadImage", //用于文件上传的服务器端请求地址
+            url: "/admin/upload/uploadImage", //用于文件上传的服务器端请求地址
             secureuri: false, //是否需要安全协议，一般设置为false
             fileElementId: fileInput, //文件上传域的ID
             dataType: 'json', //返回值类型 一般设置为json
@@ -111,7 +111,7 @@
             success: function (data, status)  //服务器成功响应处理函数
             {
                 console.log(data);
-                if (data['code'] != 200) {
+                if (data['code'] !== 200) {
                     layer.msg(data['msg']);
                     return false;
                 }

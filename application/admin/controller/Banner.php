@@ -37,4 +37,25 @@ class Banner extends Common
 
         return $this->fetch();
     }
+
+    public function addPost()
+    {
+        $name = input('name', '');
+        $imageUrl = input('image_url', '');
+        $isShow = input("is_show", 0);
+        $sort = (int) input("sort", 0);
+        $position = (int) input("position",1);
+
+        $bannerModel = new BannerModel();
+        $bannerModel->saveByData([
+            "name" => $name,
+            "image_url" => $imageUrl,
+            "is_show" => $isShow,
+            "sort" => $sort,
+            "position" => $position
+        ]);
+
+
+        $this->success("添加成功",url("index"));
+    }
 }
