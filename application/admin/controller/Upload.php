@@ -16,7 +16,7 @@ class Upload extends Common {
         $imageInfo = getimagesize($tempFile);
         $ext = image_type_to_extension($imageInfo[2], false);
 
-        $fileName = config("app.app_name") . "/" . md5(uniqid(mt_rand(), true)).".".$ext;
+        $fileName = config("app.app_name") . "/". date("Ymd") . "/".  md5(uniqid(mt_rand(), true)).".".$ext;
 
         $returnData['code'] = 200;
         $returnData['msg'] = '上传成功';

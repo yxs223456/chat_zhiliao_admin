@@ -5,6 +5,87 @@
 define("REDIS_KEY_PREFIX", "chat_zhiliao:");
 
 /**
+ * 首页推荐集合
+ */
+define("REDIS_KEY_HOME_RECOMMEND_LIST", REDIS_KEY_PREFIX . "homeRecommendList");
+
+// 将用户放入首页推荐集合
+function addUserToHomeRecommendList($userId, $score, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_RECOMMEND_LIST;
+    $redis->zAdd($key, $score, $userId);
+}
+
+// 首页推荐集合删除用户
+function deleteUserFromHomeRecommendList($userId, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_RECOMMEND_LIST;
+    $redis->zRem($key, $userId);
+}
+
+// 首页推荐集合获取分页数据
+function getUserListFromHomeRecommendList($pageNum, $pageSize, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_RECOMMEND_LIST;
+    return $redis->zRange($key, ($pageNum-1)*$pageSize, $pageSize);
+}
+
+/**
+ * 首页新人集合
+ */
+define("REDIS_KEY_HOME_NEW_USER_LIST", REDIS_KEY_PREFIX . "homeNewUserList");
+
+// 将用户放入首页新人列表
+function addUserToHomeNewUserList($userId, $score, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_NEW_USER_LIST;
+    $redis->zAdd($key, $score, $userId);
+}
+
+// 首页新人集合删除用户
+function deleteUserFromHomeNewUserList($userId, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_NEW_USER_LIST;
+    $redis->zRem($key, $userId);
+}
+
+// 首页新人集合获取分页数据
+function getUserListFromHomeNewUserList($pageNum, $pageSize, \Redis $redis)
+{
+    $key = REDIS_KEY_HOME_NEW_USER_LIST;
+    return $redis->zRange($key, ($pageNum-1)*$pageSize, $pageSize);
+}
+
+/**
+ * 首页对应地区用户集合
+ */
+define("REDIS_KEY_HOME_SITE_LIST", REDIS_KEY_PREFIX . "homeSiteList:");
+
+// 将用户放入首页对应地区用户集合
+function addUserToHomeSiteList($userId, $score, $site, \Redis $redis)
+{
+    $siteMd5 = md5($site);
+    $key = REDIS_KEY_HOME_SITE_LIST . $siteMd5;
+    $redis->zAdd($key, $score, $userId);
+}
+
+// 首页对应地区用户集合删除用户
+function deleteUserFromHomeSiteList($userId, $site, \Redis $redis)
+{
+    $siteMd5 = md5($site);
+    $key = REDIS_KEY_HOME_SITE_LIST . $siteMd5;
+    $redis->zRem($key, $userId);
+}
+
+// 首页对应地区用户集合获取分页数据
+function getUserListFromHomeSiteList($pageNum, $pageSize, $site, \Redis $redis)
+{
+    $siteMd5 = md5($site);
+    $key = REDIS_KEY_HOME_SITE_LIST . $siteMd5;
+    return $redis->zRange($key, ($pageNum-1)*$pageSize, $pageSize);
+}
+
+/**
  * banner 列表
  */
 define("REDIS_KEY_BANNER_LIST_BY_POSITION", REDIS_KEY_PREFIX . "bannerListByPosition:");
@@ -465,61 +546,44 @@ function getNearUserDynamicInfoLock($userId, Redis $redis)
 /**
  * 附近用户geohash缓存相关(并发)
  */
-define("REDIS_USER_LONG_LAT_INFO", REDIS_KEY_PREFIX . 'userLongLatInfo:');
+define("REDIS_ALL_USER_LONG_LAT_INFO", REDIS_KEY_PREFIX . 'allUserLongLatInfo:');
 // 缓存数据
 function cacheUserLongLatInfo($userId, $lat, $long, \Redis $redis)
 {
-    $geotools = new \League\Geotools\Geotools();
-    $coordToGeohash = new \League\Geotools\Coordinate\Coordinate([$lat, $long]);
-    $geoHash = $geotools->geohash()->encode($coordToGeohash, 12)->getGeohash();
-    $key = REDIS_USER_LONG_LAT_INFO . '|' . $geoHash . "|" . $userId;
-    $redis->set($key, $userId, 86400);
+
+    $key = REDIS_ALL_USER_LONG_LAT_INFO;
+    // 添加当前用户经纬度
+    $redis->rawCommand("geoadd", $key, $long, $lat, $userId);
 }
 
-// 获取附近用户坐标缓存
-function getNearUserLongLatInfo($lat, $long, \Redis $redis)
+// 获取某个用户查询200km半斤内用户ID和之间的距离
+function getNearUserLongLatInfo($userId, \Redis $redis)
 {
-    $geotools = new \League\Geotools\Geotools();
-    $coordToGeohash = new \League\Geotools\Coordinate\Coordinate([$lat, $long]);
-    $geoHash = $geotools->geohash()->encode($coordToGeohash, 1)->getGeohash();
-    $key = REDIS_USER_LONG_LAT_INFO . '|' . $geoHash . "*";
-    $keys = $redis->keys($key);
-    if (empty($keys)) {
+    $key = REDIS_ALL_USER_LONG_LAT_INFO;
+    $ret = $redis->rawCommand("georadiusbymember", $key, $userId, \app\common\Constant::GEO_SEARCH_DISTANCE_KILOMETER, "km", "WITHDIST", "COUNT", "300", "ASC");
+    if (empty($ret)) {
         return null;
     }
-    $ret = [];
-    foreach ($keys as $item) {
-        $keyArr = explode("|", $item);
-        $ret[$keyArr[1] . "|" . $keyArr[2]] = $keyArr[2];
-    }
+
     return $ret;
 }
 
-// 获取某个用户坐标缓存
-function getUserLongLatInfo($userId, \Redis $redis)
+// 计算两个用户间的距离
+function getDistanceByTwoUserId($userId1, $userId2, Redis $redis)
 {
-    $key = REDIS_USER_LONG_LAT_INFO . "|*|" . $userId;
-    $keys = $redis->keys($key);
-    if (empty($keys)) {
-        return null;
-    }
-    $first = array_shift($keys);
-    $keyArr = explode("|", $first);
-    return $keyArr[1];
+    return $redis->rawCommand("geodist", REDIS_ALL_USER_LONG_LAT_INFO, $userId1, $userId2, "km");
 }
 
 // 删除所有用户坐标缓存
 function deleteUserLongLatInfo(\Redis $redis)
 {
-    $keys = $redis->keys(REDIS_USER_LONG_LAT_INFO . "*");
-    $redis->del($keys);
+    $redis->del(REDIS_ALL_USER_LONG_LAT_INFO);
 }
 
 // 删除一个用户坐标缓存
 function deleteUserLongLatInfoByUserId($userId, \Redis $redis)
 {
-    $keys = $redis->keys(REDIS_USER_LONG_LAT_INFO . "|*|" . $userId);
-    $redis->del($keys);
+    $redis->zRem(REDIS_ALL_USER_LONG_LAT_INFO, $userId);
 }
 
 /**
@@ -530,38 +594,17 @@ define("REDIS_NEAR_USER_SORT_SET", REDIS_KEY_PREFIX . "nearUserSortSet:");
 function cacheNearUserSortSet($userId, \Redis $redis)
 {
     $key = REDIS_NEAR_USER_SORT_SET . $userId;
-    $geoHash = getUserLongLatInfo($userId, $redis);
-    if (empty($geoHash)) {
-        return;
-    }
-    $searchKey = REDIS_USER_LONG_LAT_INFO . "|" . substr($geoHash, 0, 1) . "*";
-    $keys = $redis->keys($searchKey);
-    if (empty($keys)) {
+    $userIdAndDistance = getNearUserLongLatInfo($userId, $redis);
+    if (empty($userIdAndDistance)) {
         return;
     }
 
     // 计算距离放入有序集合
-    foreach ($keys as $item) {
-        $keyArr = explode("|", $item);
-        // 排除当前用户自己
-        if ($keyArr[2] == $userId) {
+    foreach ($userIdAndDistance as $item) {
+        if ($item[0] == $userId) {
             continue;
         }
-        $geotools = app('geotools');
-        $decodedDynamicUser = $geotools->geohash()->decode($keyArr[1]);
-        $userLat = $decodedDynamicUser->getCoordinate()->getLatitude();
-        $userLong = $decodedDynamicUser->getCoordinate()->getLongitude();
-        $dynamicCoordUser = new \League\Geotools\Coordinate\Coordinate([$userLat, $userLong]);
-
-        $loginUser = $geotools->geohash()->decode($geoHash);
-        $lat = $loginUser->getCoordinate()->getLatitude();
-        $long = $loginUser->getCoordinate()->getLongitude();
-        $loginCoordUser = new \League\Geotools\Coordinate\Coordinate([$lat, $long]);
-
-        $distance = $geotools->distance()->setFrom($dynamicCoordUser)->setTo($loginCoordUser);
-        $km = sprintf("%.2f", $distance->in('km')->haversine());
-
-        $redis->zAdd($key, $km, $keyArr[2]);
+        $redis->zAdd($key, $item[1], $item[0]);
     }
     $redis->expire($key, 86400); // 缓存一天
 }
@@ -607,84 +650,6 @@ function deleteNearUserCache($userId, \Redis $redis)
 {
     $key = REDIS_NEAR_USER_SORT_SET . $userId . "*";
     $keys = $redis->keys($key);
-    $redis->del($keys);
-}
-
-/**
- * 用户关系关注用户列表缓存相关(无并发)
- */
-define("REDIS_USER_RELATION_FOLLOW_INFO", REDIS_KEY_PREFIX . 'userRelationFollowInfo:');
-// 缓存关注用户数据
-function cacheUserRelationFollowInfo($userId, $startId, $pageSize, $data, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FOLLOW_INFO . $userId . ":" . $startId . ":" . $pageSize;
-    $redis->set($key, json_encode($data), 3600);
-}
-
-// 获取关注用户缓存
-function getUserRelationFollowInfo($userId, $startId, $pageSize, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FOLLOW_INFO . $userId . ":" . $startId . ":" . $pageSize;
-    $data = $redis->get($key);
-    return $data ? json_decode($data, true) : null;
-}
-
-// 删除关注用户数据所有缓存
-function deleteUserRelationFollowInfo($userId, \Redis $redis)
-{
-    $keys = $redis->keys(REDIS_USER_RELATION_FOLLOW_INFO . $userId . "*");
-    $redis->del($keys);
-}
-
-/**
- * 用户关系用户被关注列表缓存相关(无并发)
- */
-define("REDIS_USER_RELATION_FANS_INFO", REDIS_KEY_PREFIX . 'userRelationFansInfo:');
-// 缓存用户被关注数据
-function cacheUserRelationFansInfo($userId, $startId, $pageSize, $data, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FANS_INFO . $userId . ":" . $startId . ":" . $pageSize;
-    $redis->set($key, json_encode($data), 3600);
-}
-
-// 获取用户被关注缓存
-function getUserRelationFansInfo($userId, $startId, $pageSize, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FANS_INFO . $userId . ":" . $startId . ":" . $pageSize;
-    $data = $redis->get($key);
-    return $data ? json_decode($data, true) : null;
-}
-
-// 删除用户被关注所有缓存
-function deleteUserRelationFansInfo($userId, \Redis $redis)
-{
-    $keys = $redis->keys(REDIS_USER_RELATION_FANS_INFO . $userId . "*");
-    $redis->del($keys);
-}
-
-/**
- * 用户关系用户好友列表缓存相关(无并发)
- */
-define("REDIS_USER_RELATION_FRIEND_INFO", REDIS_KEY_PREFIX . 'userRelationFriendInfo:');
-// 缓存用户好友数据
-function cacheUserRelationFriendInfo($userId, $pageSize, $data, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FRIEND_INFO . $userId . ":" . $pageSize;
-    $redis->set($key, json_encode($data), 3600);
-}
-
-// 获取用户好友缓存
-function getUserRelationFriendInfo($userId, $pageSize, \Redis $redis)
-{
-    $key = REDIS_USER_RELATION_FRIEND_INFO . $userId . ":" . $pageSize;
-    $data = $redis->get($key);
-    return $data ? json_decode($data, true) : null;
-}
-
-// 删除用户好友数据所有缓存
-function deleteUserRelationFriendInfo($userId, \Redis $redis)
-{
-    $keys = $redis->keys(REDIS_USER_RELATION_FRIEND_INFO . $userId . "*");
     $redis->del($keys);
 }
 
@@ -922,3 +887,256 @@ function getUserGuard($userId, Redis $redis)
 }
 
 
+/**
+ * 缓存女神魅力榜(根据时间段缓存一天)
+ */
+define("REDIS_FEMALE_CHARM_LIST", REDIS_KEY_PREFIX . "user_female_charm_list:");
+//缓存月魅力榜单分页数据
+function cacheUserFemaleCharmList($pageNum, $pageSize, $startTime, $endTime, $data, Redis $redis)
+{
+    $key = REDIS_FEMALE_CHARM_LIST . $startTime . "-" . $endTime . ":" . $pageSize . "-" . $pageNum;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 86400);// 缓存一天
+    }
+}
+
+//获取女神魅力榜单分页数据
+function getUserFemaleCharmList($pageNum, $pageSize, $startTime, $endTime, Redis $redis)
+{
+    $key = REDIS_FEMALE_CHARM_LIST . $startTime . "-" . $endTime . ":" . $pageSize . "-" . $pageNum;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+/**
+ * 缓存自己魅力值信息(根据时间段缓存一天)
+ */
+define("REDIS_FEMALE_CHARM_INFO", REDIS_KEY_PREFIX . "user_female_charm_info:");
+//缓存当前登陆女神用户自己魅力信息
+function cacheUserFemaleCharmInfo($userId, $startTime, $endTime, $data, Redis $redis)
+{
+    $key = REDIS_FEMALE_CHARM_INFO . $startTime . "-" . $endTime . ":" . $userId;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 86400);// 缓存一天
+    }
+}
+
+//获取当前登陆女神魅力信息
+function getUserFemaleCharmInfo($userId, $startTime, $endTime, Redis $redis)
+{
+    $key = REDIS_FEMALE_CHARM_INFO . $startTime . "-" . $endTime . ":" . $userId;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+/**
+ * 缓存女神周贡献榜单信息(缓存一天)
+ */
+define("REDIS_PRETTY_WEEK_CONTRIBUTION_LIST", REDIS_KEY_PREFIX . "user_pretty_week_contribution_list:");
+//缓存女神周贡献榜单
+function cachePrettyWeekContributionList($userId, $startDate, $endDate, $data, Redis $redis)
+{
+    $key = REDIS_PRETTY_WEEK_CONTRIBUTION_LIST . $userId . ":" . $startDate . "-" . $endDate;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 86400);// 缓存一天
+    }
+}
+
+//获取女神周贡献榜
+function getPrettyWeekContributionList($userId, $startDate, $endDate, Redis $redis)
+{
+    $key = REDIS_PRETTY_WEEK_CONTRIBUTION_LIST . $userId . ":" . $startDate . "-" . $endDate;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+// 删除女神周角逐榜缓存，本周角逐榜需要实时
+function deletePrettyWeekContributionList($userId, $startDate, $endDate, Redis $redis)
+{
+    $key = REDIS_PRETTY_WEEK_CONTRIBUTION_LIST . $userId . ":" . $startDate . "-" . $endDate;
+    $redis->del($key);
+}
+
+/**
+ * 男生收入总排行榜缓存(缓存一天)
+ */
+define("REDIS_MALE_ALL_EARN_LIST", REDIS_KEY_PREFIX . "user_male_all_earn_list:");
+//男生收入总排行分页缓存
+function cacheMaleAllEarnList($pageNum, $pageSize, $data, Redis $redis)
+{
+    $key = REDIS_MALE_ALL_EARN_LIST . $pageSize . ":" . $pageNum;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 3600);// 缓存一天
+    }
+}
+
+//获取男生收入总排行分页缓存
+function getMaleAllEarnList($pageNum, $pageSize, Redis $redis)
+{
+    $key = REDIS_MALE_ALL_EARN_LIST . $pageSize . ":" . $pageNum;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+/**
+ * 男生收入本周排行榜缓存(缓存一小时)
+ */
+define("REDIS_MALE_WEEK_EARN_LIST", REDIS_KEY_PREFIX . "user_male_week_earn_list:");
+//男生收入本周排行分页缓存
+function cacheMaleWeekEarnList($pageNum, $pageSize, $data, Redis $redis)
+{
+    // 获取本周开始结束时间
+    list($startDate, $endDate) = getWeekStartAndEnd();
+    $key = REDIS_MALE_WEEK_EARN_LIST . $startDate . "-" . $endDate . ":" . $pageSize . ":" . $pageNum;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 3600);// 缓存一小时
+    }
+}
+
+//获取男生收入本周排行分页缓存
+function getMaleWeekEarnList($pageNum, $pageSize, Redis $redis)
+{
+    // 获取本周开始结束时间
+    list($startDate, $endDate) = getWeekStartAndEnd();
+    $key = REDIS_MALE_WEEK_EARN_LIST . $startDate . "-" . $endDate . ":" . $pageSize . ":" . $pageNum;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+
+/**
+ * 男生正在守护的女神列表(缓存一天)
+ */
+define("REDIS_MALE_CURRENT_GUARD_PRETTY", REDIS_KEY_PREFIX . "user_male_current_guard_pretty:");
+//男生正在守护的女神列表
+function cacheMaleCurrentGuardPretty($uid, $data, Redis $redis)
+{
+    $key = REDIS_MALE_CURRENT_GUARD_PRETTY . $uid;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 86400);// 缓存一天
+    }
+}
+
+//获取男生正在守护的女神列表
+function getMaleCurrentGuardPretty($uid, Redis $redis)
+{
+    $key = REDIS_MALE_CURRENT_GUARD_PRETTY . $uid;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+/**
+ * 男生最近三个月守护的女神列表(缓存一天)
+ */
+define("REDIS_MALE_RECENTLY_GUARD_PRETTY", REDIS_KEY_PREFIX . "user_male_recently_guard_pretty:");
+//男生最近三个月守护的女神列表
+function cacheMaleRecentlyGuardPretty($uid, $data, Redis $redis)
+{
+    $key = REDIS_MALE_RECENTLY_GUARD_PRETTY. $uid;
+    $redis->set($key, json_encode($data));
+    if ($redis->ttl($key) == -1) {
+        $redis->expire($key, 86400);// 缓存一天
+    }
+}
+
+//获取男生最近三个月守护的女神列表
+function getMaleRecentlyGuardPretty($uid, Redis $redis)
+{
+    $key = REDIS_MALE_RECENTLY_GUARD_PRETTY . $uid;
+    $data = $redis->get($key);
+    if ($data) {
+        return json_decode($data, true);
+    }
+    return null;
+}
+
+
+/**
+ * 城市小视频列表缓存相关(并发)
+ */
+define("REDIS_CITY_VIDEO_LIST", REDIS_KEY_PREFIX . 'cityVideoList:');
+// 缓存数据
+function cacheCityVideoList($city, $startId, $pageSize, $data, \Redis $redis)
+{
+    $key = REDIS_CITY_VIDEO_LIST . $city . ":" . $startId . ":" . $pageSize;
+    $redis->set($key, json_encode($data), 3600);
+}
+
+// 获取缓存
+function getCityVideoList($city, $startId, $pageSize, \Redis $redis)
+{
+    $key = REDIS_CITY_VIDEO_LIST . $city . ":" . $startId . ":" . $pageSize;
+    $data = $redis->get($key);
+    return $data ? json_decode($data, true) : null;
+}
+
+// 删除所有缓存
+function deleteCityVideoList(\Redis $redis)
+{
+    $keys = $redis->keys(REDIS_CITY_VIDEO_LIST . "*");
+    $redis->del($keys);
+}
+
+// 删除首页缓存
+function deleteFirstCityVideoList($city, $pageSize, \Redis $redis)
+{
+    $key = REDIS_CITY_VIDEO_LIST . $city . ":0:" . $pageSize;
+    $redis->del($key);
+}
+
+/**
+ * 推荐小视频列表缓存相关(并发)
+ */
+define("REDIS_RECOMMEND_VIDEO_LIST", REDIS_KEY_PREFIX . 'recommendVideoList:');
+// 缓存数据
+function cacheRecommendVideoList($startId, $pageSize, $data, \Redis $redis)
+{
+    $key = REDIS_RECOMMEND_VIDEO_LIST . $startId . ":" . $pageSize;
+    $redis->set($key, json_encode($data), 3600);
+}
+
+// 获取缓存
+function getRecommendVideoList($startId, $pageSize, \Redis $redis)
+{
+    $key = REDIS_RECOMMEND_VIDEO_LIST . $startId . ":" . $pageSize;
+    $data = $redis->get($key);
+    return $data ? json_decode($data, true) : null;
+}
+
+// 删除所有缓存
+function deleteRecommendVideoList(\Redis $redis)
+{
+    $keys = $redis->keys(REDIS_RECOMMEND_VIDEO_LIST . "*");
+    $redis->del($keys);
+}
+
+// 删除首页缓存
+function deleteFirstRecommendVideoList($pageSize, \Redis $redis)
+{
+    $key = REDIS_RECOMMEND_VIDEO_LIST . "0:" . $pageSize;
+    $redis->del($key);
+}
